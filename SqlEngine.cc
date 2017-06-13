@@ -121,7 +121,81 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
 
 RC SqlEngine::load(const string& table, const string& loadfile, bool index)
 {
-    
+    RC temporal;
+    RecordFile archivo_registro;
+    fstream stream_archivo;
+    int llave;
+    string valor;
+    RecordId id_record;
+    string linea;
+    BTreeIndex arbol;
+
+
+    stream_archivo.open(loadfile.c_str(),fstream::in);
+
+    if(!stream_archivo.is_open())
+      fprintf(stderr,"Error %s\n",loadfile.c_str());
+
+
+    if(archivo_registro.open(table + ".tbl", 'w'))
+        return RC_FILE_OPEN_FAILED;
+
+
+    if(index)
+    {
+        temporal=archivo_registro.append(llave,valor,id_record);
+      int iterator=0;
+      temporal=arbol.open(table + ".idx",'w');
+      if(!temporal)
+      {
+        int iterator=0;
+
+        while(getline(stream_archivo,linea))
+        {
+          temporal=parseLoadLine(linea,llave,valor);
+          if(temporal)
+            break;
+
+          temporal=archivo_registro.append(llave,valor,id_record);
+          if(temporal)
+            break;
+
+          temporal=arbol.insert(llave,id_record);
+          if(temporal)
+            break;
+        }
+
+        arbol.close();
+      }
+    }
+    else{
+
+      while(!stream_archivo.eof()){
+          getline(stream_archivo, linea);
+
+
+          temporal=parseLoadLine(linea, llave, valor);
+          if(temporal)
+              break;
+
+
+          temporal=archivo_registro.append(llave, valor, id_record);
+          if(temporal)
+              break;
+      }
+    }
+
+
+    stream_archivo.close();
+
+    if(archivo_registro.close())
+        return RC_FILE_CLOSE_FAILED;
+
+    cout << "Se creo el archivo" << endl;
+    if(index){
+      cout << "Se creo el indice" << endl;
+    }  
+    return temporal;
   return 0;
 }
 
